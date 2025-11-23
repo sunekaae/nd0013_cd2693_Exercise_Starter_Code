@@ -39,32 +39,26 @@ vector<float> initialize_priors(int map_size, vector<float> landmark_positions,
   // set all priors to 0.0
 
   vector<float> priors(map_size, 0.0f);
-  float std_dev = 1.0f;
-      std::cout << "1priors.size(): " << priors.size() << "\n";
     
   // TODO: YOUR CODE HERE
-  int positions = 0;
+  float std_dev = 1.0f;
+      std::cout << "1priors.size(): " << priors.size() << "\n";
+  vector<float> positions;
   for (float landmark : landmark_positions) {
     std::cout << "determining number of positions\n";
-    positions = ++positions;
+    positions.push_back(landmark);
     if ((landmark-std_dev)>=0.0f) {
-      positions = ++positions;
+      positions.push_back(landmark-std_dev);
     }
     if ((landmark+std_dev)<=map_size) {
-      positions = ++positions;
+      positions.push_back(landmark+std_dev);
     }
   }
-  std::cout << "positions: " << positions << "\n";
+  std::cout << "positions: " << positions.size() << "\n";
 
-  float probability = 1.0f/positions;
-  for (float landmark : landmark_positions) {
-    priors[landmark] = probability;
-    if ((landmark-std_dev)>=0.0f) {
-      priors[landmark-std_dev] = probability;
-    }
-    if ((landmark+std_dev)<=map_size) {
-      priors[landmark+std_dev] = probability;
-    }
+  float probability = 1.0f/positions.size();
+  for (float position : positions) {
+    priors[position] = probability;
   }
  
   std::cout << "priors.size(): " << priors.size() << "\n";
