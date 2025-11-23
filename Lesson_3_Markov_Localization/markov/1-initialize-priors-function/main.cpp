@@ -34,12 +34,40 @@ vector<float> initialize_priors(int map_size, vector<float> landmark_positions,
                                 float position_stdev) {
 
   // initialize priors assuming vehicle at landmark +/- 1.0 meters position stdev
-
+ 
+    
   // set all priors to 0.0
-  vector<float> priors(map_size, 0.0);
+
+  vector<float> priors(map_size, 0.0f);
+  float std_dev = 1.0f;
+      std::cout << "1priors.size(): " << priors.size() << "\n";
     
   // TODO: YOUR CODE HERE
+  int positions = 0;
+  for (float landmark : landmark_positions) {
+    std::cout << "determining number of positions\n";
+    positions = ++positions;
+    if ((landmark-std_dev)>=0.0f) {
+      positions = ++positions;
+    }
+    if ((landmark+std_dev)<=map_size) {
+      positions = ++positions;
+    }
+  }
+  std::cout << "positions: " << positions << "\n";
 
-
+  float probability = 1.0f/positions;
+  for (float landmark : landmark_positions) {
+    priors[landmark] = probability;
+    if ((landmark-std_dev)>=0.0f) {
+      priors[landmark-std_dev] = probability;
+    }
+    if ((landmark+std_dev)<=map_size) {
+      priors[landmark+std_dev] = probability;
+    }
+  }
+ 
+  std::cout << "priors.size(): " << priors.size() << "\n";
+        
   return priors;
 }
