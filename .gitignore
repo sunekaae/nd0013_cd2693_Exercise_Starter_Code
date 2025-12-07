@@ -4,3 +4,11 @@
 CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
+**/main
+**/main.yml
+**/Info.plist
+**/a.out
+.gitignore
+**/*.dSYM/**
+Lesson_2_C++_Checkpoint/challenges/challenge4/car
+Lesson_2_C++_Checkpoint/challenges/challenge5/.DS_Store
