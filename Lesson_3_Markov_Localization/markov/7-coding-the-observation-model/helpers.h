@@ -6,7 +6,9 @@
 class Helpers {
  public:
   // definition of one over square root of 2*pi:
-  constexpr static float STATIC_ONE_OVER_SQRT_2PI = 1/sqrt(2*M_PI);
+  static float GET_STATIC_ONE_OVER_SQRT_2PI() {
+    return 1/sqrt(2*M_PI);
+  }
 
   /**
    * normpdf(X,mu,sigma) computes the probability function at values x using the
@@ -15,7 +17,7 @@ class Helpers {
    * The normal pdf is y=f(x,mu,std)= 1/(std*sqrt(2pi)) e[ -(x−mu)^2 / 2*std^2 ]
    */
   static float normpdf(float x, float mu, float std) {
-    return (STATIC_ONE_OVER_SQRT_2PI/std)*exp(-0.5*pow((x-mu)/std,2));
+    return (GET_STATIC_ONE_OVER_SQRT_2PI()/std)*exp(-0.5*pow((x-mu)/std,2));
   }
 };
 
