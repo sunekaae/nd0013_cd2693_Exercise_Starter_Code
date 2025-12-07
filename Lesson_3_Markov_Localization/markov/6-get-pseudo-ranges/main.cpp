@@ -50,10 +50,16 @@ vector<float> pseudo_range_estimator(vector<float> landmark_positions,
             
   // loop over number of landmarks and estimate pseudo ranges
   // YOUR CODE HERE
+  for (int i=0; i<landmark_positions.size(); i++) {
+    float delta = landmark_positions[i] - pseudo_position;
+    if (delta >= 0) {
+      pseudo_ranges.push_back(delta);
+    }
+  }
         
-
   // sort pseudo range vector
   // YOUR CODE HERE
+  std::sort(pseudo_ranges.begin(), pseudo_ranges.end());
     
   return pseudo_ranges;
 }
