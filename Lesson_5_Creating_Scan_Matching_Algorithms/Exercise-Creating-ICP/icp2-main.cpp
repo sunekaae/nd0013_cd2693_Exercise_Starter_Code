@@ -150,7 +150,12 @@ Eigen::Matrix4d ICP(vector<int> associations, PointCloudT::Ptr target, PointClou
 
   	Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity();
 
-  	// TODO: transform source by startingPose
+  	// transform source by startingPose
+	// adjust sensor measurement into global coordinates.
+	Eigen::Matrix4d initialTransform = transform3D(startingPose.rotation.yaw, startingPose.rotation.pitch, startingPose.rotation.roll, startingPose.position.x, startingPose.position.y, startingPose.position.z);
+	PointCloudT::Ptr transformedSource (new PointCloudT);
+	pcl::transformPointCloud(*source, *transformedSource, initialTransform);
+ 
   
   	// TODO: create matrices P and Q which are both 2 x 1 and represent mean point of pairs 1 and pairs 2 respectivley.
   	// In other words P is the mean point of source and Q is the mean point target 
