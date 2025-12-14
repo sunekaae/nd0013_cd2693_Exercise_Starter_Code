@@ -87,7 +87,7 @@ int main(){
 		movement.push_back(Vect2(1.0, pi/6));
 	}
 	// Part 3. TODO: localize after randomly moving around the whole room
-	if(false){ // Change to true
+	if(true){ // Change to true
 		srand(time(0));
 		for(int i = 0; i < 10; i++){
 			double mag = 0.5 * ((double) rand() / (RAND_MAX)) + 0.5;
