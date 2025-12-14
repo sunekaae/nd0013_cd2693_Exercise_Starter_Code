@@ -58,13 +58,17 @@ int main() {
   /**
    * TODO: initialize priors
    */
+  vector<float> priors = initialize_priors(map_size, landmark_positions,
+                                                 position_stdev);
+ 
+  std::cout << "priors.size(): " << priors.size() << "\n";
   
 
   // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-  //cout << "-----------PRIORS INIT--------------" << endl;
-  //for (int p = 0; p < priors.size(); ++p){
-  //  cout << priors[p] << endl;
-  //}  
+  cout << "-----------PRIORS INIT--------------" << endl;
+  for (int p = 0; p < priors.size(); ++p){
+    cout << priors[p] << endl;
+  }  
     
   // initialize posteriors
   vector<float> posteriors(map_size, 0.0);
@@ -78,9 +82,9 @@ int main() {
   // cycle through time steps
   for (int t = 0; t < time_steps; ++t) {
     // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-    //cout << "---------------TIME STEP---------------" << endl;
-    //cout << "t = " << t << endl;
-    //cout << "-----Motion----------OBS----------------PRODUCT--" << endl;
+    cout << "---------------TIME STEP---------------" << endl;
+    cout << "t = " << t << endl;
+    cout << "-----Motion----------OBS----------------PRODUCT--" << endl;
 
     if (!sensor_obs[t].empty()) {
       observations = sensor_obs[t]; 
@@ -95,59 +99,74 @@ int main() {
       /**
        * TODO: get the motion model probability for each x position
        */
+      float motion_prob = motion_model(pseudo_position, movement_per_timestep,
+                                            priors, map_size, control_stdev);
 
 
       /**
        * TODO: get pseudo ranges
        */
+        // define pseudo observation vector
+      vector<float> pseudo_ranges = pseudo_range_estimator(landmark_positions, 
+                                                         pseudo_position);
 
 
       /**
        * TODO: get observation probability
        */
-
+      /// “How likely is it that the robot would observe what it saw, if it were actually at position i?”
+      // initialize observation probability
+      float observation_prob = observation_model(landmark_positions, 
+                                                     observations, pseudo_ranges,
+                                                     distance_max, observation_stdev);
+      // float observation_prob = 1.0f;
 
       /**
        * TODO: calculate the ith posterior and pass to posteriors vector
        */
+      //float posterior = priors[i] * motion_prob * observation_prob;
+      float posterior = motion_prob * observation_prob;
+      posteriors[i] = posterior;
+      // TODO: check if use push instead of assignment
       
 
       // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-      //cout << motion_prob << "\t" << observation_prob << "\t" 
-      //     << "\t"  << motion_prob * observation_prob << endl;   
+      cout << motion_prob << "\t" << observation_prob << "\t" 
+           << "\t"  << motion_prob * observation_prob << endl;   
     } 
         
     // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-    //cout << "----------RAW---------------" << endl;
-    //for (int p = 0; p < posteriors.size(); ++p) {
-    //  cout << posteriors[p] << endl;
-    //}
+    cout << "----------RAW---------------" << endl;
+    for (int p = 0; p < posteriors.size(); ++p) {
+      cout << posteriors[p] << endl;
+    }
 
     /**
      * TODO: normalize posteriors (see helpers.h for a helper function)
      */
-    
+    posteriors = Helpers::normalize_vector(posteriors);
 
     // print to stdout
-    //cout << posteriors[t] <<  "\t" << priors[t] << endl;
+    cout << posteriors[t] <<  "\t" << priors[t] << endl;
 
     // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-    //cout << "----------NORMALIZED---------------" << endl;
+    cout << "----------NORMALIZED---------------" << endl;
 
     /**
      * TODO: update priors
      */
+    priors = posteriors;
     
 
     // UNCOMMENT TO SEE THIS STEP OF THE FILTER
-    //for (int p = 0; p < posteriors.size(); ++p) {
-    //  cout << posteriors[p] << endl;
-    //}
+    for (int p = 0; p < posteriors.size(); ++p) {
+      cout << posteriors[p] << endl;
+    }
 
     // print posteriors vectors to stdout
-    for (int p = 0; p < posteriors.size(); ++p) {
-            cout << posteriors[p] << endl;  
-    } 
+    //for (int p = 0; p < posteriors.size(); ++p) {
+    //        cout << posteriors[p] << endl;  
+    //} 
   }
 
   return 0;
@@ -172,7 +191,7 @@ float observation_model(vector<float> landmark_positions,
       // remove this entry from pseudo_ranges-vector
       pseudo_ranges.erase(pseudo_ranges.begin());
     } else {  // no or negative distances: set min distance to a large number
-        pseudo_range_min = std::numeric_limits<const float>::infinity();
+        pseudo_range_min = std::numeric_limits<const float>::infinity(); // TODO: consider if this should be: ""= distance_max" instead  
     }
 
     // estimate the probability for observation model, this is our likelihood 

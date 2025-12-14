@@ -55,10 +55,17 @@ int main() {
 float observation_model(vector<float> landmark_positions, 
                         vector<float> observations, vector<float> pseudo_ranges, 
                         float distance_max, float observation_stdev) {
-  float distance_prob;
+  float distance_prob = 1.0f;
   // YOUR CODE HERE
-
-
+  for (int i=0; i<observations.size(); i++) {
+    float distance = INFINITY;
+    if (pseudo_ranges.size() > 0) {
+       distance = pseudo_ranges[0];
+       pseudo_ranges.erase(pseudo_ranges.begin());
+    }
+    float observation_probability = Helpers::normpdf(observations[i], distance, observation_stdev);
+    distance_prob *= observation_probability;
+  }
   return distance_prob;
 }
 

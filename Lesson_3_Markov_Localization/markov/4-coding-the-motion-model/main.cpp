@@ -54,7 +54,12 @@ float motion_model(float pseudo_position, float movement, vector<float> priors,
   float position_prob = 0.0f;
   
   // YOUR CODE HERE
-
+  for (int i = 0; i < priors.size(); ++i) {
+    float delta = pseudo_position - i; // TODO: float and int math here, ok?
+    float normpdf = Helpers::normpdf(delta, movement, control_stdev); // P(transition))
+    float probability = normpdf * priors[i]; // P(position)
+    position_prob += probability;
+  }
   
   return position_prob;
 }

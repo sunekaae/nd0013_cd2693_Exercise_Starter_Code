@@ -8,3 +8,12 @@ Hint: you'll need to define:
 4. three public methods
 */
 
+class Car {
+public:
+    Car();
+    void wearAndTear();
+    bool drive();
+    void fix();
+private:
+    bool in_working_condition_;
+};
