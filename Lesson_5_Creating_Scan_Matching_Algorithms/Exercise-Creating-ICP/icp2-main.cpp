@@ -128,11 +128,7 @@ vector<Pair> PairPoints(vector<int> associations, PointCloudT::Ptr target, Point
 	for (int i=0; i < source->points.size(); i++) {
 		PointT p1 = source->points[i];
 		PointT p2 = target->points[associations[i]];
-		//Pair pair; // TODO: is this ok or does not it need to be pcl::PointXYZ
-		//pair.point1 = p1;
-		//pair.point2 = p2;
 		Pair pair = Pair(Point(p1.x, p1.y,0), Point(p2.x, p2.y,0));
-		// Pair pair = new Pair(p1, p2);
 
 		pairs.push_back(pair);
 		if(render){
