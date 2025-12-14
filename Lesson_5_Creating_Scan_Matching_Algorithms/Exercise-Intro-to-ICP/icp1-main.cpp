@@ -17,6 +17,20 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
 
 	//TODO: complete the ICP function and return the corrected transform
 
+	// adjust sensor measurement into global coordinates.
+	Eigen::Matrix4d initialTransform = transform2D(startingPose.theta, startingPose.position.x, startingPose.position.y);
+	PointCloudT::Ptr transformedSource (new PointCloudT);
+	pcl::transformPointCloud(*source, *transformedSource, initialTransform);
+
+	pcl::IterativeClosestPoint<PointT, PointT> icp;
+	icp.setMaximumIterations (iterations);
+	icp.setInputSource(transformedSource);
+	icp.setInputTarget(target);
+	PointCloudT::Ptr icp_cloud (new PointCloudT);
+	icp.align(*icp_cloud);
+
+	
+
 	return transformation_matrix;
 
 }
