@@ -128,15 +128,18 @@ vector<Pair> PairPoints(vector<int> associations, PointCloudT::Ptr target, Point
 	for (int i=0; i < source->points.size(); i++) {
 		PointT p1 = source->points[i];
 		PointT p2 = target->points[associations[i]];
-		Pair pair; // TODO: is this ok or does not it need to be pcl::PointXYZ
-		pair.point1 = p1;
-		pair.point2 = p2;
+		//Pair pair; // TODO: is this ok or does not it need to be pcl::PointXYZ
+		//pair.point1 = p1;
+		//pair.point2 = p2;
+		Pair pair = Pair(Point(p1.x, p1.y,0), Point(p2.x, p2.y,0));
+		// Pair pair = new Pair(p1, p2);
+
 		pairs.push_back(pair);
 		if(render){
 			string lineName = "line"+to_string(i);
 			//viewer->addLine<PointT, PointT> (p1, p2, 0, 1, 0, lineName);
-			viewer->removeShape(to_string(index)); // remove object name from viewer so can be used next time. An error message appears if trying to add it and its already contained.
-			renderRay(viewer, Point(point.x, point.y,0), Point(association.x, association.y,0), to_string(index), Color(0,1,0)); // render the associations line segments
+			viewer->removeShape(to_string(i)); // remove object name from viewer so can be used next time. An error message appears if trying to add it and its already contained.
+			renderRay(viewer, Point(p1.x, p1.y,0), Point(p2.x, p2.y,0), to_string(i), Color(0,1,0)); // render the associations line segments
 		}
 	}
 
