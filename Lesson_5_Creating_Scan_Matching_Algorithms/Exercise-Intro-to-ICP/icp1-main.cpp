@@ -14,30 +14,7 @@ using namespace std;
 Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose startingPose, int iterations){
 
 	Eigen::Matrix4d transformation_matrix = Eigen::Matrix4d::Identity ();
-
-  	Eigen::Matrix4d initTransform = transform2D(startingPose.theta, startingPose.position.x, startingPose.position.y);
-  	PointCloudT::Ptr transformSource (new PointCloudT); 
-  	pcl::transformPointCloud (*source, *transformSource, initTransform);
-
-	//TODO: complete the ICP function and return the corrected transform
-	//pcl::console::TicToc time;
-  	//time.tic ();
-  	pcl::IterativeClosestPoint<PointT, PointT> icp;
-  	icp.setMaximumIterations (iterations);
-  	icp.setInputSource (transformSource);
-  	icp.setInputTarget (target);
-  	PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
-  	icp.align (*cloud_icp);
   	
-  	if (icp.hasConverged ())
-  	{
-  		std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-  		transformation_matrix = icp.getFinalTransformation ().cast<double>();
-  		transformation_matrix =  transformation_matrix * initTransform;
-  		return transformation_matrix;
-  	}
-  	cout << "WARNING: ICP did not converge" << endl;
-
 	// adjust sensor measurement into global coordinates.
 	Eigen::Matrix4d initialTransform = transform2D(startingPose.theta, startingPose.position.x, startingPose.position.y);
 	PointCloudT::Ptr transformedSource (new PointCloudT);
@@ -50,8 +27,16 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
 	PointCloudT::Ptr icp_cloud (new PointCloudT);
 	icp.align(*icp_cloud);
 
-	
+	if (icp.hasConverged ())
+	{
+		std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+		transformation_matrix = icp.getFinalTransformation ().cast<double>();
+		transformation_matrix =  transformation_matrix * initialTransform;
+		return transformation_matrix;
+	}
+	cout << "WARNING: ICP did not converge" << endl;
 
+    
 	return transformation_matrix;
 
 }
