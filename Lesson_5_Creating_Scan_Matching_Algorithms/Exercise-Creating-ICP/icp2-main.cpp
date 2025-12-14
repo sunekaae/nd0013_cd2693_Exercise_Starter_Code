@@ -95,7 +95,7 @@ vector<int> NN(PointCloudT::Ptr target, PointCloudT::Ptr source, Eigen::Matrix4d
 	// create a KDtree with target as input
 	// Create KDTree object in PCL
 	pcl::KdTreeFLANN<PointT> kdtree;
-	kdtree.setInputCloud (*source); // use the target point cloud as input
+	kdtree.setInputCloud (source); // use the target point cloud as input
 
 	// transform source by initTransform
 	// adjust sensor measurement into global coordinates.
@@ -111,12 +111,12 @@ vector<int> NN(PointCloudT::Ptr target, PointCloudT::Ptr source, Eigen::Matrix4d
 		// #POINT `pcl::PointXYZ` (input point from transformed source) 
 		// #DISTANCE `double` use distance parameter from `NN` header
 		pcl::PointXYZ searchPoint = transformedSource->points[i];
-		if (-1 != kdtree.radiusSearch (#POINT, dist, pointIdxRadiusSearch, pointRadiusSquaredDistance) ) {
+		if (-1 != kdtree.radiusSearch (searchPoint, dist, pointIdxRadiusSearch, pointRadiusSquaredDistance) ) {
 			// if no points found within distance returns -1.
 			// otherwise closest target point index is pointIdxRadiusSearch[0]
 		associations.push_back(pointIdxRadiusSearch[0]); // placeholder for each source point
 		}
-
+	}
 	return associations;
 }
 
