@@ -114,7 +114,7 @@ Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointX
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ndt (new pcl::PointCloud<pcl::PointXYZ>);
   	ndt.align (*cloud_ndt, init_guess);
 
-	cout << "Normal Distributions Transform has converged:" << ndt.hasConverged () << " score: " << ndt.getFitnessScore () <<  " time: " << time.toc() <<  " ms" << endl;
+	// cout << "Normal Distributions Transform has converged:" << ndt.hasConverged () << " score: " << ndt.getFitnessScore () <<  " time: " << time.toc() <<  " ms" << endl;
 
 	Eigen::Matrix4d transformation_matrix = ndt.getFinalTransformation ().cast<double>();
 
@@ -149,7 +149,8 @@ int main(){
 
 	// SUNE
 	// LiDAR pose relative to vehicle (same numbers you used when spawning it)
-	const Eigen::Matrix4d T_vehicle_lidar = transform3D(0, 0, 0, -0.5, 0.0, 1.8);
+	//const Eigen::Matrix4d T_vehicle_lidar = transform3D(0, 0, 0, -0.5, 0.0, 1.8);
+	const Eigen::Matrix4d T_vehicle_lidar = Eigen::Matrix4d::Identity();
 
 	auto lidar_actor = world.SpawnActor(lidar_bp, lidar_transform, ego_actor.get());
 	auto lidar = boost::static_pointer_cast<cc::Sensor>(lidar_actor);
@@ -181,7 +182,7 @@ std::cout << "map centroid: " << c[0] << "," << c[1] << "," << c[2] << "\n";
 	// Setting minimum transformation difference for termination condition.
   	ndt.setTransformationEpsilon (.0001);
   	// Setting maximum step size for More-Thuente line search.
-  	ndt.setStepSize (1.0);
+  	ndt.setStepSize (0.2);
   	//Setting Resolution of NDT grid structure (VoxelGridCovariance).
   	ndt.setResolution (1.0);
   	
@@ -285,8 +286,9 @@ std::cout << "map centroid: " << c[0] << "," << c[1] << "," << c[2] << "\n";
 			static bool initialized = false;
 
 			static int goodCount = 0;
-			const double MAX_LIDAR_ERR = 1.0;     // 
-			const int GOOD_N = 1;                  // 
+			const double MAX_LIDAR_ERR = 0.25;   // 25 cm (start strict)
+			const int GOOD_N = 3;                // require stability
+			const double MAX_FITNESS = 2.0;      // tune: lower is stricter                 // 
 
 
 			
@@ -362,18 +364,20 @@ std::cout << "map centroid: " << c[0] << "," << c[1] << "," << c[2] << "\n";
 				(ndtLidarPose.position.y - trueLidarPose.position.y) * (ndtLidarPose.position.y - trueLidarPose.position.y)
 			);
 
-			if (ndt.hasConverged() && ndtErrLidar < MAX_LIDAR_ERR) {
-				goodCount++;
-			} else {
-				goodCount = 0;
-			}			
+			double score = ndt.getFitnessScore();   // valid after align
+			bool good = ndt.hasConverged()
+					&& (ndtErrLidar < MAX_LIDAR_ERR)
+					&& (score < MAX_FITNESS);
+
+			goodCount = good ? (goodCount + 1) : 0;
 			bool accept = (goodCount >= GOOD_N);
 
 			std::cout << "accept=" << accept
 					<< " ndtErr(lidar)=" << ndtErrLidar
+					<< " score=" << score
 					<< " trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
-					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
-
+					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";	
+					
 			
 			if (accept) {
 			Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
