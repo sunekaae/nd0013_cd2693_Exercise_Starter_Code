@@ -114,7 +114,7 @@ Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointX
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ndt (new pcl::PointCloud<pcl::PointXYZ>);
   	ndt.align (*cloud_ndt, init_guess);
 
-	//cout << "Normal Distributions Transform has converged:" << ndt.hasConverged () << " score: " << ndt.getFitnessScore () <<  " time: " << time.toc() <<  " ms" << endl;
+	cout << "Normal Distributions Transform has converged:" << ndt.hasConverged () << " score: " << ndt.getFitnessScore () <<  " time: " << time.toc() <<  " ms" << endl;
 
 	Eigen::Matrix4d transformation_matrix = ndt.getFinalTransformation ().cast<double>();
 
@@ -282,18 +282,18 @@ int main(){
 			// pose = pose + delta (your explicit field updates)
 
 			// // --- NDT candidate (NOT applied yet) ---
-			// Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 3);
-			// Pose ndtPose = getPose(T_ndt);
+			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10);
+			Pose ndtPose = getPose(T_ndt);
 
-			// // Compare NDT vs your current pose
-			// double ndtErr = sqrt(
-			// 	(ndtPose.position.x - pose.position.x) * (ndtPose.position.x - pose.position.x) +
-			// 	(ndtPose.position.y - pose.position.y) * (ndtPose.position.y - pose.position.y)
-			// 	);
+			// Compare NDT vs your current pose
+			double ndtErr = sqrt(
+				(ndtPose.position.x - pose.position.x) * (ndtPose.position.x - pose.position.x) +
+				(ndtPose.position.y - pose.position.y) * (ndtPose.position.y - pose.position.y)
+				);
 
-			// std::cout << "ndtErr=" << ndtErr
-			// 		<< "  pose=(" << pose.position.x << "," << pose.position.y << ")"
-			// 		<< "  ndt=("  << ndtPose.position.x << "," << ndtPose.position.y << ")\n";
+			std::cout << "ndtErr=" << ndtErr
+					<< "  pose=(" << pose.position.x << "," << pose.position.y << ")"
+					<< "  ndt=("  << ndtPose.position.x << "," << ndtPose.position.y << ")\n";
 
 
 			// Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
