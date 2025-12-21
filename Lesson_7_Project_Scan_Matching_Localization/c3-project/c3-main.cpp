@@ -263,32 +263,43 @@ int main(){
 						vehicle->GetTransform().rotation.roll * pi/180)
 				) - poseRef;
 
+			// TRUE world->vehicle transform (CARLA truth for this frame)
+			Eigen::Matrix4d T_world_vehicle_true =
+				transform3D(currentTruePose.rotation.yaw,
+							currentTruePose.rotation.pitch,
+							currentTruePose.rotation.roll,
+							currentTruePose.position.x,
+							currentTruePose.position.y,
+							currentTruePose.position.z);
+
+			// TRUE world->lidar transform (apply fixed extrinsic)
+			Eigen::Matrix4d T_true_lidar = T_world_vehicle_true * T_vehicle_lidar;
+			Pose trueLidarPose = getPose(T_true_lidar);
+
 			if(!initialized){
 				lastTruePose = currentTruePose;   // overwrite
+				pose = currentTruePose;
 				initialized = true;
-			}
+			} else  {
 
-			Pose delta = currentTruePose - lastTruePose;
+				Pose delta = currentTruePose - lastTruePose;
 
-			// accumulate (very simple “add”)
-			pose.position.x += delta.position.x;
-			pose.position.y += delta.position.y;
-			pose.position.z += delta.position.z;
+				// accumulate (very simple “add”)
+				pose.position.x += delta.position.x;
+				pose.position.y += delta.position.y;
+				pose.position.z += delta.position.z;
 
-			pose.rotation.yaw   += delta.rotation.yaw;
-			pose.rotation.pitch += delta.rotation.pitch;
-			pose.rotation.roll  += delta.rotation.roll;
+				pose.rotation.yaw   += delta.rotation.yaw;
+				pose.rotation.pitch += delta.rotation.pitch;
+				pose.rotation.roll  += delta.rotation.roll;
 
-			lastTruePose = currentTruePose;
+				lastTruePose = currentTruePose;
+			}	
 
 			cout << "pose.x = " << pose.position.x << "  true.x = " << currentTruePose.position.x << endl;
 
 			// Your current stable truth-based pose update stays as-is:
 			// pose = pose + delta (your explicit field updates)
-
-			// // --- NDT candidate (NOT applied yet) ---
-			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10, T_vehicle_lidar);
-			Pose ndtPose = getPose(T_ndt);
 
 
 			// Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
@@ -296,20 +307,38 @@ int main(){
 							pose.position.x, pose.position.y, pose.position.z)
 							* T_vehicle_lidar;
 
-			// Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt, PointCloudT::Ptr source, Pose startingPose, int iterations){
-			//Eigen::Matrix4d transform = NDT(ndt, cloudFiltered, pose, 3);
-			//pose = getPose(transform);
 			
-			Pose trueLidarPose = getPose(T_vis);      // LiDAR pose from your truth-based pose + extrinsic
-			Pose ndtLidarPose  = getPose(T_ndt);      // LiDAR pose from NDT
+			// --- NDT candidate ---
+			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10, T_vehicle_lidar);
 
-			double ndtErr = hypot(ndtLidarPose.position.x - trueLidarPose.position.x,
-								ndtLidarPose.position.y - trueLidarPose.position.y);
+			// Compare LiDAR pose (truth) vs LiDAR pose (NDT)
 
-			std::cout << "ndtErr(lidar)=" << ndtErr
-					<< "  trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
-					<< "  ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
-			
+			Pose ndtLidarPose  = getPose(T_ndt);
+
+			double ndtErrLidar = sqrt(
+				(ndtLidarPose.position.x - trueLidarPose.position.x) * (ndtLidarPose.position.x - trueLidarPose.position.x) +
+				(ndtLidarPose.position.y - trueLidarPose.position.y) * (ndtLidarPose.position.y - trueLidarPose.position.y)
+			);
+
+			const double MAX_LIDAR_ERR = 0.10; 
+			bool accept = ndt.hasConverged() && (ndtErrLidar < MAX_LIDAR_ERR);
+
+			std::cout << "accept=" << accept
+					<< " ndtErr(lidar)=" << ndtErrLidar
+					<< " trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
+					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
+
+			// If accepted: convert NDT's world->lidar to world->vehicle and update pose
+			if (accept) {
+				Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
+				pose = getPose(T_world_vehicle_from_ndt);
+
+				// recompute T_vis to match updated pose
+				T_vis = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
+									pose.position.x, pose.position.y, pose.position.z)
+						* T_vehicle_lidar;
+			}
+
 
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
 			pcl::transformPointCloud (*cloudFiltered, *transformed_scan, T_vis);
