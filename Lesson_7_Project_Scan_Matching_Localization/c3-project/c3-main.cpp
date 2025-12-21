@@ -247,7 +247,10 @@ int main(){
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
 			// Use CARLA ground-truth pose relative to start (poseRef)
-			pose = Pose(
+			static Pose lastTruePose;
+			static bool initialized = false;
+
+			Pose currentTruePose = Pose(
 				Point(vehicle->GetTransform().location.x,
 						vehicle->GetTransform().location.y,
 						vehicle->GetTransform().location.z),
@@ -255,6 +258,26 @@ int main(){
 						vehicle->GetTransform().rotation.pitch * pi/180,
 						vehicle->GetTransform().rotation.roll * pi/180)
 				) - poseRef;
+
+			if(!initialized){
+				lastTruePose = currentTruePose;   // overwrite
+				initialized = true;
+			}
+
+			Pose delta = currentTruePose - lastTruePose;
+
+			// accumulate (very simple “add”)
+			pose.position.x += delta.position.x;
+			pose.position.y += delta.position.y;
+			pose.position.z += delta.position.z;
+
+			pose.rotation.yaw   += delta.rotation.yaw;
+			pose.rotation.pitch += delta.rotation.pitch;
+			pose.rotation.roll  += delta.rotation.roll;
+
+			lastTruePose = currentTruePose;
+
+			cout << "pose.x = " << pose.position.x << "  true.x = " << currentTruePose.position.x << endl;
 
 			// Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
 			Eigen::Matrix4d transform = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
