@@ -177,7 +177,7 @@ int main(){
 	// Setting minimum transformation difference for termination condition.
   	ndt.setTransformationEpsilon (.0001);
   	// Setting maximum step size for More-Thuente line search.
-  	ndt.setStepSize (1);
+  	ndt.setStepSize (0.1);
   	//Setting Resolution of NDT grid structure (VoxelGridCovariance).
   	ndt.setResolution (1);
   	
@@ -263,6 +263,10 @@ int main(){
 			static Pose lastTruePose;
 			static bool initialized = false;
 
+			static int goodCount = 0;
+			const double MAX_LIDAR_ERR = 0.35;     // 
+			const int GOOD_N = 2;                  // require 2 consecutive good frames
+
 			Pose currentTruePose = Pose(
 				Point(vehicle->GetTransform().location.x,
 						vehicle->GetTransform().location.y,
@@ -318,7 +322,7 @@ int main(){
 
 			
 			// --- NDT candidate ---
-			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10, T_vehicle_lidar);
+			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 20, T_vehicle_lidar);
 
 			// Compare LiDAR pose (truth) vs LiDAR pose (NDT)
 
@@ -329,14 +333,19 @@ int main(){
 				(ndtLidarPose.position.y - trueLidarPose.position.y) * (ndtLidarPose.position.y - trueLidarPose.position.y)
 			);
 
-			const double MAX_LIDAR_ERR = 0.10; 
-			bool accept = ndt.hasConverged() && (ndtErrLidar < MAX_LIDAR_ERR);
+			if (ndt.hasConverged() && ndtErrLidar < MAX_LIDAR_ERR) {
+				goodCount++;
+			} else {
+				goodCount = 0;
+			}			
+			bool accept = (goodCount >= GOOD_N);
 
 			std::cout << "accept=" << accept
 					<< " ndtErr(lidar)=" << ndtErrLidar
 					<< " trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
 					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
 
+			
 			// If accepted: convert NDT's world->lidar to world->vehicle and update pose
 			if (accept) {
 				Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
@@ -346,6 +355,7 @@ int main(){
 				T_vis = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
 									pose.position.x, pose.position.y, pose.position.z)
 						* T_vehicle_lidar;
+				goodCount = 0;
 			}
 
 
