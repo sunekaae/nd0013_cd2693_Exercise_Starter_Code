@@ -169,6 +169,10 @@ int main(){
   	cout << "Loaded " << mapCloud->points.size() << " data points from map.pcd" << endl;
 	renderPointCloud(viewer, mapCloud, "map", Color(0,0,1)); 
 
+	Eigen::Vector4f c;
+pcl::compute3DCentroid(*mapCloud, c);
+std::cout << "map centroid: " << c[0] << "," << c[1] << "," << c[2] << "\n";
+
 	typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 	typename pcl::PointCloud<PointT>::Ptr scanCloud (new pcl::PointCloud<PointT>);
 
@@ -177,9 +181,9 @@ int main(){
 	// Setting minimum transformation difference for termination condition.
   	ndt.setTransformationEpsilon (.0001);
   	// Setting maximum step size for More-Thuente line search.
-  	ndt.setStepSize (0.1);
+  	ndt.setStepSize (1.0);
   	//Setting Resolution of NDT grid structure (VoxelGridCovariance).
-  	ndt.setResolution (1);
+  	ndt.setResolution (1.0);
   	
 	//ndt.setInputTarget (mapCloud);
 	PointCloudT::Ptr mapFiltered(new PointCloudT);
@@ -212,6 +216,11 @@ int main(){
 	
 	Pose poseRef(Point(vehicle->GetTransform().location.x, vehicle->GetTransform().location.y, vehicle->GetTransform().location.z), Rotate(vehicle->GetTransform().rotation.yaw * pi/180, vehicle->GetTransform().rotation.pitch * pi/180, vehicle->GetTransform().rotation.roll * pi/180));
 	double maxError = 0;
+		// WORLD transform at start
+	Eigen::Matrix4d T_world_vehicle_ref = transform3D(
+		poseRef.rotation.yaw, poseRef.rotation.pitch, poseRef.rotation.roll,
+		poseRef.position.x,   poseRef.position.y,     poseRef.position.z
+	);
 
 	while (!viewer->wasStopped())
   	{
@@ -226,7 +235,19 @@ int main(){
 		
 		viewer->removeShape("box0");
 		viewer->removeShape("boxFill0");
-		Pose truePose = Pose(Point(vehicle->GetTransform().location.x, vehicle->GetTransform().location.y, vehicle->GetTransform().location.z), Rotate(vehicle->GetTransform().rotation.yaw * pi/180, vehicle->GetTransform().rotation.pitch * pi/180, vehicle->GetTransform().rotation.roll * pi/180)) - poseRef;
+
+		Pose truePoseWorld(
+			Point(vehicle->GetTransform().location.x,
+				vehicle->GetTransform().location.y,
+				vehicle->GetTransform().location.z),
+			Rotate(vehicle->GetTransform().rotation.yaw * pi/180,
+				vehicle->GetTransform().rotation.pitch * pi/180,
+				vehicle->GetTransform().rotation.roll * pi/180)
+		);
+
+		// for drawing / evaluation (start-relative)
+		Pose truePose = truePoseWorld - poseRef;
+
 		drawCar(truePose, 0,  Color(1,0,0), 0.7, viewer);
 		double theta = truePose.rotation.yaw;
 		double stheta = control.steer * pi/4 + theta;
@@ -264,38 +285,41 @@ int main(){
 			static bool initialized = false;
 
 			static int goodCount = 0;
-			const double MAX_LIDAR_ERR = 0.35;     // 
-			const int GOOD_N = 2;                  // require 2 consecutive good frames
+			const double MAX_LIDAR_ERR = 1.0;     // 
+			const int GOOD_N = 1;                  // 
 
-			Pose currentTruePose = Pose(
+
+			
+			Pose currentTruePoseWorld(
 				Point(vehicle->GetTransform().location.x,
-						vehicle->GetTransform().location.y,
-						vehicle->GetTransform().location.z),
+					vehicle->GetTransform().location.y,
+					vehicle->GetTransform().location.z),
 				Rotate(vehicle->GetTransform().rotation.yaw * pi/180,
-						vehicle->GetTransform().rotation.pitch * pi/180,
-						vehicle->GetTransform().rotation.roll * pi/180)
-				) - poseRef;
+					vehicle->GetTransform().rotation.pitch * pi/180,
+					vehicle->GetTransform().rotation.roll * pi/180)
+			);
 
-			// TRUE world->vehicle transform (CARLA truth for this frame)
+			// keep this only if you still want delta accumulation in the REL frame
+			Pose currentTruePoseRel = currentTruePoseWorld - poseRef;
+
 			Eigen::Matrix4d T_world_vehicle_true =
-				transform3D(currentTruePose.rotation.yaw,
-							currentTruePose.rotation.pitch,
-							currentTruePose.rotation.roll,
-							currentTruePose.position.x,
-							currentTruePose.position.y,
-							currentTruePose.position.z);
+			transform3D(currentTruePoseWorld.rotation.yaw,
+						currentTruePoseWorld.rotation.pitch,
+						currentTruePoseWorld.rotation.roll,
+						currentTruePoseWorld.position.x,
+						currentTruePoseWorld.position.y,
+						currentTruePoseWorld.position.z);
 
-			// TRUE world->lidar transform (apply fixed extrinsic)
 			Eigen::Matrix4d T_true_lidar = T_world_vehicle_true * T_vehicle_lidar;
 			Pose trueLidarPose = getPose(T_true_lidar);
 
 			if(!initialized){
-				lastTruePose = currentTruePose;   // overwrite
-				pose = currentTruePose;
+				lastTruePose = currentTruePoseRel;   // overwrite
+				pose = currentTruePoseRel;
 				initialized = true;
 			} else  {
 
-				Pose delta = currentTruePose - lastTruePose;
+				Pose delta = currentTruePoseRel - lastTruePose;
 
 				// accumulate (very simple “add”)
 				pose.position.x += delta.position.x;
@@ -306,23 +330,28 @@ int main(){
 				pose.rotation.pitch += delta.rotation.pitch;
 				pose.rotation.roll  += delta.rotation.roll;
 
-				lastTruePose = currentTruePose;
+				lastTruePose = currentTruePoseRel;
 			}	
 
-			cout << "pose.x = " << pose.position.x << "  true.x = " << currentTruePose.position.x << endl;
+			cout << "pose.x = " << pose.position.x << "  true.x = " << currentTruePoseRel.position.x << endl;
 
 			// Your current stable truth-based pose update stays as-is:
 			// pose = pose + delta (your explicit field updates)
 
 
-			// Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
-			Eigen::Matrix4d T_vis = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
-							pose.position.x, pose.position.y, pose.position.z)
-							* T_vehicle_lidar;
+			// pose is REL (start-relative) -> convert to WORLD
+			Eigen::Matrix4d T_world_vehicle_guess =
+				T_world_vehicle_ref *
+				transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
+							pose.position.x,   pose.position.y,     pose.position.z);
 
-			
-			// --- NDT candidate ---
-			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 20, T_vehicle_lidar);
+			// WORLD->lidar for visualization
+			Eigen::Matrix4d T_vis;
+			T_vis = T_world_vehicle_guess * T_vehicle_lidar;
+
+			// NDT in WORLD frame: pass WORLD pose as starting guess
+			Pose poseWorldGuess = getPose(T_world_vehicle_guess);
+			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, poseWorldGuess, 20, T_vehicle_lidar);
 
 			// Compare LiDAR pose (truth) vs LiDAR pose (NDT)
 
@@ -346,16 +375,18 @@ int main(){
 					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
 
 			
-			// If accepted: convert NDT's world->lidar to world->vehicle and update pose
 			if (accept) {
-				Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
-				pose = getPose(T_world_vehicle_from_ndt);
+			Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
 
-				// recompute T_vis to match updated pose
-				T_vis = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
-									pose.position.x, pose.position.y, pose.position.z)
-						* T_vehicle_lidar;
-				goodCount = 0;
+			// convert WORLD -> REL (relative to poseRef)
+			Eigen::Matrix4d T_rel_vehicle = T_world_vehicle_ref.inverse() * T_world_vehicle_from_ndt;
+			pose = getPose(T_rel_vehicle);
+
+			// recompute T_vis to match updated pose
+			Eigen::Matrix4d T_world_vehicle_updated = T_world_vehicle_ref * T_rel_vehicle;
+			T_vis = T_world_vehicle_updated * T_vehicle_lidar;
+
+			goodCount = 0;
 			}
 
 
