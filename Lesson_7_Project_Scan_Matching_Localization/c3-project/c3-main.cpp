@@ -180,7 +180,16 @@ int main(){
   	ndt.setStepSize (1);
   	//Setting Resolution of NDT grid structure (VoxelGridCovariance).
   	ndt.setResolution (1);
-  	ndt.setInputTarget (mapCloud);
+  	
+	//ndt.setInputTarget (mapCloud);
+	PointCloudT::Ptr mapFiltered(new PointCloudT);
+	pcl::VoxelGrid<PointT> vgMap;
+	vgMap.setInputCloud(mapCloud);
+	vgMap.setLeafSize(0.5f, 0.5f, 0.5f);   // start with 0.5m (try 0.3 if needed)
+	vgMap.filter(*mapFiltered);
+
+	// renderPointCloud(viewer, mapFiltered, "map", Color(0,0,1)); // optional
+	ndt.setInputTarget(mapFiltered);
 
 	PointCloudT::Ptr transformed_scan (new PointCloudT);
 
