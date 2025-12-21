@@ -100,12 +100,12 @@ void drawCar(Pose pose, int num, Color color, double alpha, pcl::visualization::
 }
 
 // Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt, PointCloudT::Ptr source, Pose startingPose, int iterations){
-Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>& ndt, PointCloudT::Ptr source, Pose startingPose, int iterations) {
+Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ>& ndt, PointCloudT::Ptr source, Pose startingPose, int iterations, const Eigen::Matrix4d& T_vehicle_lidar) {
 	
 	pcl::console::TicToc time;
 	time.tic ();
 
-	Eigen::Matrix4f init_guess = transform3D(startingPose.rotation.yaw, startingPose.rotation.pitch, startingPose.rotation.roll, startingPose.position.x, startingPose.position.y, startingPose.position.z).cast<float>();
+	Eigen::Matrix4f init_guess = (transform3D(startingPose.rotation.yaw, startingPose.rotation.pitch, startingPose.rotation.roll, startingPose.position.x, startingPose.position.y, startingPose.position.z) * T_vehicle_lidar).cast<float>();
 
   	// Setting max number of registration iterations.
   	ndt.setMaximumIterations (iterations);
@@ -146,6 +146,11 @@ int main(){
 
 	auto user_offset = cg::Location(0, 0, 0);
 	auto lidar_transform = cg::Transform(cg::Location(-0.5, 0, 1.8) + user_offset);
+
+	// SUNE
+	// LiDAR pose relative to vehicle (same numbers you used when spawning it)
+	const Eigen::Matrix4d T_vehicle_lidar = transform3D(0, 0, 0, -0.5, 0.0, 1.8);
+
 	auto lidar_actor = world.SpawnActor(lidar_bp, lidar_transform, ego_actor.get());
 	auto lidar = boost::static_pointer_cast<cc::Sensor>(lidar_actor);
 	bool new_scan = true;
@@ -282,28 +287,28 @@ int main(){
 			// pose = pose + delta (your explicit field updates)
 
 			// // --- NDT candidate (NOT applied yet) ---
-			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10);
+			Eigen::Matrix4d T_ndt = NDT(ndt, cloudFiltered, pose, 10, T_vehicle_lidar);
 			Pose ndtPose = getPose(T_ndt);
-
-			// Compare NDT vs your current pose
-			double ndtErr = sqrt(
-				(ndtPose.position.x - pose.position.x) * (ndtPose.position.x - pose.position.x) +
-				(ndtPose.position.y - pose.position.y) * (ndtPose.position.y - pose.position.y)
-				);
-
-			std::cout << "ndtErr=" << ndtErr
-					<< "  pose=(" << pose.position.x << "," << pose.position.y << ")"
-					<< "  ndt=("  << ndtPose.position.x << "," << ndtPose.position.y << ")\n";
 
 
 			// Eigen::Matrix4d transform = Eigen::Matrix4d::Identity();
 			Eigen::Matrix4d T_vis = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll,
-							pose.position.x, pose.position.y, pose.position.z);
+							pose.position.x, pose.position.y, pose.position.z)
+							* T_vehicle_lidar;
 
 			// Eigen::Matrix4d NDT(pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt, PointCloudT::Ptr source, Pose startingPose, int iterations){
 			//Eigen::Matrix4d transform = NDT(ndt, cloudFiltered, pose, 3);
 			//pose = getPose(transform);
 			
+			Pose trueLidarPose = getPose(T_vis);      // LiDAR pose from your truth-based pose + extrinsic
+			Pose ndtLidarPose  = getPose(T_ndt);      // LiDAR pose from NDT
+
+			double ndtErr = hypot(ndtLidarPose.position.x - trueLidarPose.position.x,
+								ndtLidarPose.position.y - trueLidarPose.position.y);
+
+			std::cout << "ndtErr(lidar)=" << ndtErr
+					<< "  trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
+					<< "  ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";
 			
 
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
