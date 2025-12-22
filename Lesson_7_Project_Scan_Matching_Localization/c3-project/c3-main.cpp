@@ -145,7 +145,8 @@ int main(){
 	lidar_bp.SetAttribute("points_per_second", "500000");
 
 	auto user_offset = cg::Location(0, 0, 0);
-	auto lidar_transform = cg::Transform(cg::Location(-0.5, 0, 1.8) + user_offset);
+//	auto lidar_transform = cg::Transform(cg::Location(-0.5, 0, 1.8) + user_offset);
+	auto lidar_transform = cg::Transform(cg::Location(0.0, 0, 0.0) + user_offset);
 
 	// SUNE
 	// LiDAR pose relative to vehicle (same numbers you used when spawning it)
@@ -378,20 +379,30 @@ std::cout << "map centroid: " << c[0] << "," << c[1] << "," << c[2] << "\n";
 					<< " trueL=(" << trueLidarPose.position.x << "," << trueLidarPose.position.y << ")"
 					<< " ndtL=("  << ndtLidarPose.position.x  << "," << ndtLidarPose.position.y  << ")\n";	
 					
-			
+			accept = false; // FIXME
+			T_world_vehicle_true =
+  transform3D(truePoseWorld.rotation.yaw,
+              truePoseWorld.rotation.pitch,
+              truePoseWorld.rotation.roll,
+              truePoseWorld.position.x,
+              truePoseWorld.position.y,
+              truePoseWorld.position.z);
+T_vis = T_world_vehicle_true * T_vehicle_lidar;
+
 			if (accept) {
-			Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
+				Eigen::Matrix4d T_world_vehicle_from_ndt = T_ndt * T_vehicle_lidar.inverse();
 
-			// convert WORLD -> REL (relative to poseRef)
-			Eigen::Matrix4d T_rel_vehicle = T_world_vehicle_ref.inverse() * T_world_vehicle_from_ndt;
-			pose = getPose(T_rel_vehicle);
+				// convert WORLD -> REL (relative to poseRef)
+				Eigen::Matrix4d T_rel_vehicle = T_world_vehicle_ref.inverse() * T_world_vehicle_from_ndt;
+				pose = getPose(T_rel_vehicle);
 
-			// recompute T_vis to match updated pose
-			Eigen::Matrix4d T_world_vehicle_updated = T_world_vehicle_ref * T_rel_vehicle;
-			T_vis = T_world_vehicle_updated * T_vehicle_lidar;
+				// recompute T_vis to match updated pose
+				Eigen::Matrix4d T_world_vehicle_updated = T_world_vehicle_ref * T_rel_vehicle;
+				T_vis = T_world_vehicle_updated * T_vehicle_lidar;
 
-			goodCount = 0;
+				goodCount = 0;
 			}
+
 
 
 			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
