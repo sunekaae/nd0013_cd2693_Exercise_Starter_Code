@@ -153,6 +153,10 @@ int main(){
 				if((detection.x*detection.x + detection.y*detection.y + detection.z*detection.z) > 8.0){
 
 					// Sune: the project uses wrong coordinates by default. seems it has not been updated for long
+					// Frame conversion derived empirically:
+					//   x_pcl = -y_unreal
+					//   y_pcl =  x_unreal
+					//   z_pcl = -z_unreal
 					// CARLA / Unreal sensor coordinates
 					Eigen::Vector3f p_unreal( detection.x, detection.y, detection.z );
 					// Explicit frame conversion: CARLA → PCL/map
