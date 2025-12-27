@@ -151,7 +151,16 @@ int main(){
 			auto scan = boost::static_pointer_cast<csd::LidarMeasurement>(data);
 			for (auto detection : *scan){
 				if((detection.x*detection.x + detection.y*detection.y + detection.z*detection.z) > 8.0){
-					pclCloud.points.push_back(PointT(detection.x, detection.y, detection.z));
+
+					// Sune: the project uses wrong coordinates by default. seems it has not been updated for long
+					// CARLA / Unreal sensor coordinates
+					Eigen::Vector3f p_unreal( detection.x, detection.y, detection.z );
+					// Explicit frame conversion: CARLA → PCL/map
+					Eigen::Vector3f p_pcl; p_pcl <<  -p_unreal.y(),  p_unreal.x(), -p_unreal.z();
+
+					// Insert point exactly like the original code
+					pclCloud.points.push_back( PointT( p_pcl.x(), p_pcl.y(), p_pcl.z() ) );
+					// pclCloud.points.push_back(PointT(-detection.y, detection.x, -detection.z));
 				}
 			}
 			if(pclCloud.points.size() > 5000){ // CANDO: Can modify this value to get different scan resolutions
