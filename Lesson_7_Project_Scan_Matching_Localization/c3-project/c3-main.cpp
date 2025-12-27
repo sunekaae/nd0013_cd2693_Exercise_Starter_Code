@@ -176,6 +176,9 @@ int main(){
 	});
 	
 	Pose poseRef(Point(vehicle->GetTransform().location.x, vehicle->GetTransform().location.y, vehicle->GetTransform().location.z), Rotate(vehicle->GetTransform().rotation.yaw * pi/180, vehicle->GetTransform().rotation.pitch * pi/180, vehicle->GetTransform().rotation.roll * pi/180));
+	// SUNE: Carla vs PCL issues
+	auto t0 = vehicle->GetTransform();
+	Point poseRefPclPos(-t0.location.y, t0.location.x, -t0.location.z);
 	double maxError = 0;
 
 	while (!viewer->wasStopped())
@@ -227,7 +230,17 @@ int main(){
 			viewer->removeAllShapes();
 			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer);
           
-          	double poseError = sqrt( (truePose.position.x - pose.position.x) * (truePose.position.x - pose.position.x) + (truePose.position.y - pose.position.y) * (truePose.position.y - pose.position.y) );
+          	//double poseError = sqrt( (truePose.position.x - pose.position.x) * (truePose.position.x - pose.position.x) + (truePose.position.y - pose.position.y) * (truePose.position.y - pose.position.y) );
+			auto t = vehicle->GetTransform();
+			// SUNE: carla vs PCL issues
+			// CARLA world position → PCL/map position (same transform you used for the LiDAR points)
+			Point truePclAbs(-t.location.y, t.location.x, -t.location.z);
+			// Make it relative to the same start reference (like your truePose = ... - poseRef)
+			Point truePclRel(truePclAbs.x - poseRefPclPos.x, truePclAbs.y - poseRefPclPos.y, truePclAbs.z - poseRefPclPos.z);
+			// Now this comparison is frame-consistent (both in PCL/map)
+			double poseError = std::hypot(truePclRel.x - pose.position.x,
+										truePclRel.y - pose.position.y);
+
 			if(poseError > maxError)
 				maxError = poseError;
 			double distDriven = sqrt( (truePose.position.x) * (truePose.position.x) + (truePose.position.y) * (truePose.position.y) );
