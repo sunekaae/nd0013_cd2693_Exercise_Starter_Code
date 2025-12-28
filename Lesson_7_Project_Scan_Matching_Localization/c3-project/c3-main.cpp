@@ -116,8 +116,8 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
   	icp.setInputSource (transformSource);
   	icp.setInputTarget (target);
 	icp.setMaxCorrespondenceDistance (2);
-	//icp.setTransformationEpsilon(0.001);
-	//icp.setEuclideanFitnessEpsilon(.05);
+	icp.setTransformationEpsilon(0.001);
+	icp.setEuclideanFitnessEpsilon(.05);
 	//icp.setRANSACOutlierRejectionThreshold (10);
 
   	PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
@@ -132,6 +132,33 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
 			transformation_matrix = icp.getFinalTransformation ().cast<double>();
 			transformation_matrix =  transformation_matrix * initTransform;
 			//print4x4Matrix(transformation_matrix);
+
+			// SUNE DEBUG convergence
+			//#include <pcl/registration/default_convergence_criteria.h>
+			auto state = icp.getConvergeCriteria()->getConvergenceState();
+			std::cout << "ICP convergence state: ";
+
+			using Criteria = pcl::registration::DefaultConvergenceCriteria<float>;
+
+			if (state == Criteria::CONVERGENCE_CRITERIA_ITERATIONS)
+			std::cout << "ITERATIONS (hit max iters)";
+			else if (state == Criteria::CONVERGENCE_CRITERIA_TRANSFORM)
+			std::cout << "TRANSFORM (delta transform small)";
+			else if (state == Criteria::CONVERGENCE_CRITERIA_ABS_MSE)
+			std::cout << "ABS_MSE (mse below threshold)";
+			else if (state == Criteria::CONVERGENCE_CRITERIA_REL_MSE)
+			std::cout << "REL_MSE (mse improvement small)";
+			else if (state == Criteria::CONVERGENCE_CRITERIA_NO_CORRESPONDENCES)
+			std::cout << "NO_CORRESPONDENCES";
+			else if (state == Criteria::CONVERGENCE_CRITERIA_NOT_CONVERGED)
+			std::cout << "NOT_CONVERGED";
+			else
+			std::cout << "UNKNOWN";
+
+			std::cout << "  fitness=" << icp.getFitnessScore()
+					<< "  hasConverged=" << icp.hasConverged()
+					<< std::endl;
+
 		} else
 		{
 			std::cout << "\nICP has converged, but score is NOT good enough, use init instead. " << icp.getFitnessScore () << std::endl;
