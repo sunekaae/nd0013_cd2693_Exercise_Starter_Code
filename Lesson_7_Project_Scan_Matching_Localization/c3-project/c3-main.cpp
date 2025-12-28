@@ -295,10 +295,10 @@ int main(){
 			// CARLA world position → PCL/map position (same transform you used for the LiDAR points)
 			Point truePclAbs(-t.location.y, t.location.x, -t.location.z);
 			// Make it relative to the same start reference (like your truePose = ... - poseRef)
-			Point truePclRel(truePclAbs.x - poseRefPclPos.x, truePclAbs.y - poseRefPclPos.y, truePclAbs.z - poseRefPclPos.z);
+			//Point truePclRel(truePclAbs.x - poseRefPclPos.x, truePclAbs.y - poseRefPclPos.y, truePclAbs.z - poseRefPclPos.z);
 			// Now this comparison is frame-consistent (both in PCL/map)
-			double poseError = std::hypot(truePclRel.x - pose.position.x,
-										truePclRel.y - pose.position.y);
+			double poseError = std::hypot(truePclAbs.x - pose.position.x,
+										truePclAbs.y - pose.position.y);
 
 			if(poseError > maxError)
 				maxError = poseError;
