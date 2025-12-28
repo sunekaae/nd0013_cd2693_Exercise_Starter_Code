@@ -291,7 +291,6 @@ int main(){
 		
 		if(!new_scan){
 			
-			new_scan = true;
 			// DONE: (Filter scan using voxel filter)
 			pcl::VoxelGrid<PointT> vg;
 			vg.setInputCloud(scanCloud);
@@ -302,8 +301,16 @@ int main(){
 
 			// DONE: Find pose transform by using ICP or NDT matching
 			Eigen::Matrix4d transform = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll, pose.position.x, pose.position.y, pose.position.z);
-			transform = ICP(mapCloud, cloudFiltered, pose, 3);
+			transform = ICP(mapCloud, cloudFiltered, pose, 10);
 			pose = getPose(transform);
+			static double last_icp_time = -1.0;
+
+			// SUNE debug timing.
+			double now =
+			client.GetWorld().GetSnapshot().GetTimestamp().elapsed_seconds;
+			if (last_icp_time > 0.0)
+			{ std::cout << "ICP period (s): " << (now - last_icp_time) << std::endl; }
+			last_icp_time = now;
 
 			// DONE: Transform scan so it aligns with ego's actual pose and render that scan
 			pcl::transformPointCloud (*cloudFiltered, *transformed_scan, transform);
@@ -329,17 +336,20 @@ int main(){
 			viewer->removeShape("dist");
 			viewer->addText("Distance: "+to_string(distDriven)+" m", 200, 200, 32, 1.0, 1.0, 1.0, "dist",0);
 
-			if(maxError > 1.2 || distDriven >= 170.0 ){
+			if(maxError > 1.2 || distDriven >= 170.0 )
+			{
 				viewer->removeShape("eval");
-			if(maxError > 1.2){
-				viewer->addText("Try Again", 200, 50, 32, 1.0, 0.0, 0.0, "eval",0);
+				if(maxError > 1.2){
+					viewer->addText("Try Again", 200, 50, 32, 1.0, 0.0, 0.0, "eval",0);
+				}
+				else{
+					viewer->addText("Passed!", 200, 50, 32, 0.0, 1.0, 0.0, "eval",0);
+				}
 			}
-			else{
-				viewer->addText("Passed!", 200, 50, 32, 0.0, 1.0, 0.0, "eval",0);
-			}
-		}
-
 			pclCloud.points.clear();
+			new_scan = true;
+
+			//pclCloud.points.clear();
 		}
   	}
 	return 0;
