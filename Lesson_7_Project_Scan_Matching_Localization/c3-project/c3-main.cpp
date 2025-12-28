@@ -217,6 +217,12 @@ int main(){
 			
 			new_scan = true;
 			// TODO: (Filter scan using voxel filter)
+				pcl::VoxelGrid<PointT> vg;
+				vg.setInputCloud(scanCloud);
+				double filterRes = 0.5;
+				vg.setLeafSize(filterRes, filterRes, filterRes);
+				typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
+				vg.filter(*cloudFiltered);
 
 			// TODO: Find pose transform by using ICP or NDT matching
 			//pose = ....
@@ -225,7 +231,7 @@ int main(){
 
 			viewer->removePointCloud("scan");
 			// TODO: Change `scanCloud` below to your transformed scan
-			renderPointCloud(viewer, scanCloud, "scan", Color(1,0,0) );
+			renderPointCloud(viewer, cloudFiltered, "scan", Color(1,0,0) );
 
 			viewer->removeAllShapes();
 			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer);
