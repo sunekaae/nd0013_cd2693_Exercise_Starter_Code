@@ -128,7 +128,7 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
   	{
 		if (icp.getFitnessScore () < 0.5) 
 		{
-			std::cout << "\nICP has converged, score is good enough: " << icp.getFitnessScore () << std::endl;
+			//std::cout << "\nICP has converged, score is good enough: " << icp.getFitnessScore () << std::endl;
 			transformation_matrix = icp.getFinalTransformation ().cast<double>();
 			transformation_matrix =  transformation_matrix * initTransform;
 			//print4x4Matrix(transformation_matrix);
@@ -222,7 +222,9 @@ int main(){
 	lidar->Listen([&new_scan, &lastScanTime, &scanCloud](auto data){
 
 		if(new_scan){
+			
 			auto scan = boost::static_pointer_cast<csd::LidarMeasurement>(data);
+			pclCloud.points.clear();
 			for (auto detection : *scan){
 				if((detection.x*detection.x + detection.y*detection.y + detection.z*detection.z) > 8.0){
 
@@ -241,11 +243,11 @@ int main(){
 					// pclCloud.points.push_back(PointT(-detection.y, detection.x, -detection.z));
 				}
 			}
-			if(pclCloud.points.size() > 5000){ // CANDO: Can modify this value to get different scan resolutions
-				lastScanTime = std::chrono::system_clock::now();
-				*scanCloud = pclCloud;
-				new_scan = false;
-			}
+			//if(pclCloud.points.size() > 5000){ // CANDO: Can modify this value to get different scan resolutions
+			lastScanTime = std::chrono::system_clock::now();
+			*scanCloud = pclCloud;
+			new_scan = false;
+			//}
 		}
 	});
 	
@@ -260,7 +262,9 @@ int main(){
 	while (!viewer->wasStopped())
   	{
 		while(new_scan){
-			std::this_thread::sleep_for(0.1s);
+			// SUNE debug sleep
+			//std::this_thread::sleep_for(0.1s);
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			world.Tick(1s);
 		}
 		if(refresh_view){
@@ -299,9 +303,13 @@ int main(){
 			typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 			vg.filter(*cloudFiltered);
 
+			auto t0 = std::chrono::steady_clock::now();
 			// DONE: Find pose transform by using ICP or NDT matching
 			Eigen::Matrix4d transform = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll, pose.position.x, pose.position.y, pose.position.z);
-			transform = ICP(mapCloud, cloudFiltered, pose, 10);
+			transform = ICP(mapCloud, cloudFiltered, pose, 20);
+			auto t1 = std::chrono::steady_clock::now();
+			double icp_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+			std::cout << "ICP runtime (ms): " << icp_ms << "  scan pts: " << cloudFiltered->size() 	<< std::endl;
 			pose = getPose(transform);
 			static double last_icp_time = -1.0;
 
@@ -341,12 +349,13 @@ int main(){
 				viewer->removeShape("eval");
 				if(maxError > 1.2){
 					viewer->addText("Try Again", 200, 50, 32, 1.0, 0.0, 0.0, "eval",0);
+					std::cout << "maxError > 1.2" << std::endl;
 				}
 				else{
 					viewer->addText("Passed!", 200, 50, 32, 0.0, 1.0, 0.0, "eval",0);
 				}
 			}
-			pclCloud.points.clear();
+			//pclCloud.points.clear();
 			new_scan = true;
 
 			//pclCloud.points.clear();
