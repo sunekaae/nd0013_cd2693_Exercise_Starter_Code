@@ -128,18 +128,21 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
   	{
 		if (icp.getFitnessScore () < 0.5) 
 		{
-			std::cout << "\nICP has converged and score is good enough: " << icp.getFitnessScore () << std::endl;
+			std::cout << "\nICP has converged, score is good enough: " << icp.getFitnessScore () << std::endl;
 			transformation_matrix = icp.getFinalTransformation ().cast<double>();
 			transformation_matrix =  transformation_matrix * initTransform;
 			print4x4Matrix(transformation_matrix);
 		} else
 		{
-			std::cout << "\nICP has converged and but score is NOT good enough: " << icp.getFitnessScore () << std::endl;
-			return transformation_matrix;
+			std::cout << "\nICP has converged, but score is NOT good enough, use init instead. " << icp.getFitnessScore () << std::endl;
+			transformation_matrix = initTransform;
 		}
   	}
 	else
+	{
   		cout << "WARNING: ICP did not converge" << endl;
+		transformation_matrix = initTransform;
+	}
   	return transformation_matrix;
 }
 
