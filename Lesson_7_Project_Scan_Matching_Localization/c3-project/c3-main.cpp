@@ -122,7 +122,7 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
 
   	PointCloudT::Ptr cloud_icp (new PointCloudT);  // ICP output point cloud
   	icp.align (*cloud_icp);
-  	std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
+  	//std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
 
   	if (icp.hasConverged ())
   	{
@@ -131,7 +131,7 @@ Eigen::Matrix4d ICP(PointCloudT::Ptr target, PointCloudT::Ptr source, Pose start
 			std::cout << "\nICP has converged, score is good enough: " << icp.getFitnessScore () << std::endl;
 			transformation_matrix = icp.getFinalTransformation ().cast<double>();
 			transformation_matrix =  transformation_matrix * initTransform;
-			print4x4Matrix(transformation_matrix);
+			//print4x4Matrix(transformation_matrix);
 		} else
 		{
 			std::cout << "\nICP has converged, but score is NOT good enough, use init instead. " << icp.getFitnessScore () << std::endl;
@@ -265,7 +265,7 @@ int main(){
 		if(!new_scan){
 			
 			new_scan = true;
-			// TODO: (Filter scan using voxel filter)
+			// DONE: (Filter scan using voxel filter)
 			pcl::VoxelGrid<PointT> vg;
 			vg.setInputCloud(scanCloud);
 			double filterRes = 0.5;
@@ -273,32 +273,24 @@ int main(){
 			typename pcl::PointCloud<PointT>::Ptr cloudFiltered (new pcl::PointCloud<PointT>);
 			vg.filter(*cloudFiltered);
 
-			// TODO: Find pose transform by using ICP or NDT matching
-			//pose = ....
+			// DONE: Find pose transform by using ICP or NDT matching
 			Eigen::Matrix4d transform = transform3D(pose.rotation.yaw, pose.rotation.pitch, pose.rotation.roll, pose.position.x, pose.position.y, pose.position.z);
-			transform = ICP(mapCloud, cloudFiltered, pose, 10);
+			transform = ICP(mapCloud, cloudFiltered, pose, 3);
 			pose = getPose(transform);
 
-			// TODO: Transform scan so it aligns with ego's actual pose and render that scan
+			// DONE: Transform scan so it aligns with ego's actual pose and render that scan
 			pcl::transformPointCloud (*cloudFiltered, *transformed_scan, transform);
 
 			viewer->removePointCloud("scan");
-			// TODO: Change `scanCloud` below to your transformed scan
+			// DONE: Change `scanCloud` below to your transformed scan
 			renderPointCloud(viewer, transformed_scan, "scan", Color(1,0,0) );
 
 			viewer->removeAllShapes();
 			drawCar(pose, 1,  Color(0,1,0), 0.35, viewer);
           
-          	//double poseError = sqrt( (truePose.position.x - pose.position.x) * (truePose.position.x - pose.position.x) + (truePose.position.y - pose.position.y) * (truePose.position.y - pose.position.y) );
+          	double poseError = sqrt( (truePose.position.x - pose.position.x) * (truePose.position.x - pose.position.x) + (truePose.position.y - pose.position.y) * (truePose.position.y - pose.position.y) );
 			auto t = vehicle->GetTransform();
-			// SUNE: carla vs PCL issues
-			// CARLA world position → PCL/map position (same transform you used for the LiDAR points)
 			Point truePclAbs(-t.location.y, t.location.x, -t.location.z);
-			// Make it relative to the same start reference (like your truePose = ... - poseRef)
-			//Point truePclRel(truePclAbs.x - poseRefPclPos.x, truePclAbs.y - poseRefPclPos.y, truePclAbs.z - poseRefPclPos.z);
-			// Now this comparison is frame-consistent (both in PCL/map)
-			double poseError = std::hypot(truePclAbs.x - pose.position.x,
-										truePclAbs.y - pose.position.y);
 
 			if(poseError > maxError)
 				maxError = poseError;
